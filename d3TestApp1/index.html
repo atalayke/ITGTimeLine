@@ -1,0 +1,352 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>D3 Test Application</title>
+    <script type="text/javascript" src="d3/d3.v4.js"></script>
+</head>
+<body>    
+    <style>
+        div.bar {
+            display: inline-block;
+            width: 3px;
+            /*/height: 75px; /* We'll override height later */
+            background-color: teal                        
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: black;
+            stroke-width: 3px;
+            shape-rendering: crispEdges;
+        }
+        
+        .axis text {
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+
+        .desc text {
+            font-family: sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .x.axis path {
+            display: none;
+        }
+    
+    </style>
+    <script type="text/javascript">
+
+        /*
+           Variables used to control spacing of descriptions / bars
+        */
+        var origLen = yBar = barHgt = yText = 260,
+            stepDiff = 65;
+        /*
+            Set parameters for main SVG 
+        */
+        var margin = { top: 100, right: 160, bottom: 100, left: 160 },
+            realW = 1080,
+            realH = 620,
+            w = realW - margin.right - margin.left,
+            h = realH - margin.top - margin.bottom;
+
+            //w = realW - margin.right - margin.left,
+            //h = realH - margin.top - margin.bottom;
+
+        var border = 0.25;
+        var borderColor = 'black';
+        
+        var dataset = [[new Date(2017, 12, 18),"NHLBI Council Concept Clearance"],
+                        [new Date(2018, 1, 4), "Schedule FOA Development Meeting"],
+                        [new Date(2018, 1, 18), "Consult with Office of Scientific Review"],
+                        [new Date(2018, 3, 14), "NHLBI Director's Approval to Publish FOA in NIH Guide Memo"],
+                        [new Date(2018, 3, 16), "RO Submits to NIH Guide"], 
+                        [new Date(2018, 4, 16), "NIH Guide Publication"],
+                        [new Date(2018, 5, 15), "Letters of Intent"],
+                        [new Date(2018, 6, 15), "Stuff Stuff Stuff, Test Test Test"],
+                        [new Date(2018, 6, 17), "NHLBI Director's Approval to Publish FOA in NIH Guide Memo"],
+                        [new Date(2018, 7, 15), "Application Receipt Date or Something Who Really Knows"],
+                        [new Date(2018, 7, 26), "NHLBI Director's Approval to Publish FOA in NIH Guide Memo"],
+                        [new Date(2018, 11, 15), "Peer Review Meeting"],
+                        [new Date(2019, 1, 15), "Summary Statements Complete"],
+                        [new Date(2019, 2, 15), "Council Meeting"]];
+
+        /*
+            Generate axis 
+        */
+        var mainScale = d3.scaleTime()
+                  .domain([new Date(2017, 12, 18), new Date(2019, 2, 15)])
+                  .range([margin.left, w + margin.right]);
+        
+        var svg = d3.select("body")
+            .append("svg")
+            .attr("id", "main")
+            .style("border", border)
+            .attr("width", w + margin.right + margin.left)
+            .attr("height", h + margin.top + margin.bottom);
+
+        var mainAxis = d3.axisBottom(mainScale)
+                      .ticks(dataset.length);
+
+        svg.append("g")
+            .attr("class", "axis")
+            .attr("id", "mainAxis");
+
+        setMainAxis();
+
+        function setMainAxis() {
+            svg.select("#mainAxis")
+            .attr("transform", "translate(0," + realH / 2 + ")")
+            .call(mainAxis)
+            .selectAll("text")
+            .attr("y", 0)
+            .attr("x", 9)
+            .attr("dy", "1.2em")
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+        }        
+
+        var borderPath = svg.append("rect")
+                            .attr("x", 0)
+                            .attr("y", 0)
+                            .attr("height", realH)
+                            .attr("width", realW)
+                            .style("stroke", borderColor)
+                            .style("fill", "none")
+                            .style("stroke-width", border);
+        
+        function generateContent() {
+        
+            setMainAxis();
+
+            /*
+         * Generate SVG Rectanges Leading from X-Axis to
+         * Center of Task Labels
+        */
+
+            var bars = svg.append("g")
+                        .attr("id", "bars")
+                        .selectAll("rect")
+                        .data(dataset)
+                        .enter()
+                        .append("rect");
+
+            bars.attr("x", function (d) { return mainScale(d[0]); })
+                .attr("width", 2)
+                .attr("y", function (d, i) {
+                    if (i % 2 == 0) {
+                        if (yBar == stepDiff) {
+                            yBar = origLen;
+                        }
+                        return (realH / 2) - yBar;
+                    } else {
+                        yBar = yBar - stepDiff;
+                        return (realH / 2);
+                    }
+                })
+                .attr("height", function (d, i) {
+                    if (i % 2 == 0) {
+                        if (barHgt == stepDiff) {
+                            barHgt = origLen;
+                        }
+                        return barHgt;
+                    } else {
+                        temp = barHgt;
+                        barHgt = barHgt - stepDiff;
+                        return temp;
+                    }
+                })
+                .style("fill", "gray")
+                .style("opacity", 0.35);
+
+            /*
+            * Display Text / Date
+            */
+            var desc = svg.append("g")
+                .attr("id", "desc")
+                .attr("class", "desc")
+                .selectAll("text")
+                .data(dataset)
+                .enter()
+                .append("text")
+                .text(function (d, i) { return d[1] + ": " + d[0].toDateString(); })
+                .attr("x", function (d) { return mainScale(d[0]) + 2; })
+                .attr("y", function (d, i) {
+                    if (i % 2 == 0) {
+                        if (yText == stepDiff) {
+                            yText = origLen;
+                        }
+                        return (realH / 2) - yText;
+                    } else {
+                        temp = yText;
+                        yText = yText - stepDiff;
+                        return (realH / 2) + temp;
+                    }
+                }
+                    )
+                .attr("dy", 0)
+                .call(wrap, 150);
+
+            /*
+                Generate Rects to surround text
+            */
+            var textCoords = [];
+            var doc = document.getElementsByTagName("text");
+            console.log(doc);
+            for (i = 1; i < doc.length; i++) {
+                if (doc[i].id == "descText") {
+                    textCoords.push(doc[i]);
+                }
+            }
+            console.log(textCoords);
+
+            var descBox = svg.append("g")
+                .attr("id", "descBox")
+                .selectAll("rects")
+                .data(textCoords)
+                .enter()
+                .append("rect")
+                .attr("x", function (d) { return d.getAttribute("x"); })
+                .attr("y", function (d) { return d.getAttribute("y") - 25; })
+                .attr("width", 155)
+                .attr("height", function (d) { return d.getBBox().height + 25; })
+                .style("fill", "gray")
+                .style("fill-opacity", 0.1)
+                .attr("id", "descRect")
+                .attr("rx", 1.5)
+                .attr("ry", 1.5);
+
+            /*
+    Handle Mouse-hover / mouse-out events
+*/
+            d3.selectAll("#descRect")
+                .on("mouseover", hover)
+                .on("mouseout", mouseOut);
+        }
+        function clearContent() {
+            d3.select("#main").selectAll("rect").remove();
+            d3.select("#main").selectAll("#descText").remove();
+        }
+        generateContent();
+
+        function wrap(text, width) {
+            text.each(function () {
+                var text = d3.select(this),
+                    words = text.text().split(/\s+/).reverse(),
+                    word,
+                    line = [],
+                    lineNumber = 0,
+                    lineHeight = 1.1, // ems
+                    y = text.attr("y"),
+                    x = text.attr("x"),
+                    dy = parseFloat(text.attr("dy")),
+                    tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+                while (word = words.pop()) {
+                    line.push(word);
+                    tspan.text(line.join(" "));
+                    if (tspan.node().getComputedTextLength() > width) {
+                        line.pop();
+                        tspan.text(line.join(" "));
+                        line = [word];
+                        tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                    }
+                }
+                text.attr("id", "descText");
+            });
+        }
+       
+        function hover(hoverD) {
+            d3.selectAll("#descRect")
+                .filter(function (d) { return d == hoverD; })
+                .style("fill-opacity", 0.45);
+        }
+
+        function mouseOut() {
+            d3.selectAll("#descRect")
+                .style("fill-opacity", 0.1);
+        }
+
+        /*
+            Handle Brush and Zoom
+        */
+
+        var brushMargin = { top: 50, right: 160, bottom: 50, left: 160 },
+            brushRealW = 1080,
+            brushRealH = 150,
+            brushW = 1080 - brushMargin.right - brushMargin.left,
+            brushH = 150 - brushMargin.top - brushMargin.bottom;
+
+        var brushSvg = d3.select('body')
+                 .append("svg")
+                 .style("border", border)
+                 .attr("width", brushRealW)
+                 .attr("height", brushRealH)
+                 .attr("id", "brushSVG");
+
+        var brushScale = d3.scaleTime()
+                .domain([new Date(2017, 12, 18), new Date(2019, 2, 15)])                
+                .range([brushMargin.left, brushW + brushMargin.right]);
+
+        var brushAxis = d3.axisBottom(brushScale)
+                    .ticks(dataset.length);
+
+        var brush = d3.brushX()
+                    .extent([[0, 0], [brushRealW, brushRealH]])
+                    .on("brush", brushed);
+
+        brushSvg.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(0," + 75 + ")")
+            .call(brushAxis)
+            .selectAll("text")
+            .attr("y", 0)
+            .attr("x", 9)
+            .attr("dy", "1.2em")
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+        var borderPath = brushSvg.append("rect")
+                            .attr("x", 0)
+                            .attr("y", 0)
+                            .attr("height", brushRealH)
+                            .attr("width", brushRealW)
+                            .style("stroke", borderColor)
+                            .style("fill", "none")
+                            .style("stroke-width", border);
+
+        var miniRects = brushSvg.append("g")
+                    .attr("id", "miniRects")
+                    .selectAll("rect")
+                    .data(dataset)
+                    .enter()
+                    .append("rect");
+
+        miniRects.attr("x", function (d) { return brushScale(d[0]); })
+            .attr("y", 0)
+            .attr("height", 75)
+            .attr("width", 3)
+            .style("fill", "gray")
+            .style("opacity", 0.35);
+
+        brushSvg.append("g")
+            .attr("class", "brush")
+            .call(brush)
+            .call(brush.move, mainAxis.range);
+
+        function brushed() {
+            if (d3.event.sourceEvent) {
+                var selection = d3.event.selection;
+                mainScale.domain(selection.map(brushScale.invert, brushScale));
+                svg.select("#mainAxis").call(mainAxis);
+                clearContent();
+                generateContent();
+            }          
+        }
+
+   </script>
+</body>
+</html>
