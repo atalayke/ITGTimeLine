@@ -7,13 +7,6 @@
 </head>
 <body>    
     <style>
-        div.bar {
-            display: inline-block;
-            width: 3px;
-            /*/height: 75px; /* We'll override height later */
-            background-color: teal                        
-        }
-
         .axis path,
         .axis line {
             fill: none;
@@ -39,7 +32,6 @@
     
     </style>
     <script type="text/javascript">
-
         /*
            Variables used to control spacing of descriptions / bars
         */
@@ -53,13 +45,21 @@
             realH = 620,
             w = realW - margin.right - margin.left,
             h = realH - margin.top - margin.bottom;
-
-            //w = realW - margin.right - margin.left,
-            //h = realH - margin.top - margin.bottom;
-
+            
+        /*
+            Border Parameters (maybe going to get rid of?)
+        */
         var border = 0.25;
-        var borderColor = 'black';
-        
+        var borderColor = 'white';
+
+        /*
+            Width of textblocks
+        */
+        var textWidth = 150;
+
+        /*
+            Temporary Data
+        */
         var dataset = [[new Date(2017, 12, 18),"NHLBI Council Concept Clearance"],
                         [new Date(2018, 1, 4), "Schedule FOA Development Meeting"],
                         [new Date(2018, 1, 18), "Consult with Office of Scientific Review"],
@@ -78,10 +78,18 @@
         /*
             Generate axis 
         */
+        var minDate = new Date(dataset[0][0].setMonth(dataset[0][0].getMonth() - 2));
+        var maxDate = new Date(dataset[dataset.length - 1][0].setMonth(dataset[dataset.length - 1][0].getMonth() + 2));
+        minDate.setDate(1);
+        maxDate.setDate(1);
+        console.log(minDate);
+        console.log(maxDate);
         var mainScale = d3.scaleTime()
-                  .domain([new Date(2017, 12, 18), new Date(2019, 2, 15)])
-                  .range([margin.left, w + margin.right]);
-        
+                            .domain([minDate, maxDate])
+                          //.domain(minDate, maxDate)
+                  //.range([margin.left, w + margin.right]);
+                          .range([0, realW]);
+
         var svg = d3.select("body")
             .append("svg")
             .attr("id", "main")
@@ -90,7 +98,8 @@
             .attr("height", h + margin.top + margin.bottom);
 
         var mainAxis = d3.axisBottom(mainScale)
-                      .ticks(dataset.length);
+                        .ticks(dataset.length);
+                        //ticks(d3.time.months);
 
         svg.append("g")
             .attr("class", "axis")
@@ -117,122 +126,120 @@
                             .attr("width", realW)
                             .style("stroke", borderColor)
                             .style("fill", "none")
-                            .style("stroke-width", border);
+                            .style("stroke-width", border);                      
         
-        function generateContent() {
-        
-            setMainAxis();
+        /*
+        * Display Text / Date
+        */
+        var desc = svg.append("g")
+            .attr("id", "desc")
+            .attr("class", "desc")
+            .selectAll("text")
+            .data(dataset)
+            .enter()
+            .append("text")
+            .text(function (d, i) { return d[1] + ": " + d[0].toDateString(); })
+            .attr("x", function (d) { return mainScale(d[0]) - (textWidth / 2); })
+            .attr("y", function (d, i) { return textGetY(d, i); })
+            .attr("dy", 0)
+            .call(wrap, textWidth);
 
-            /*
-         * Generate SVG Rectanges Leading from X-Axis to
-         * Center of Task Labels
+        function textGetY(d, i) {
+            if (i % 2 == 0) {
+                if (yText == stepDiff) {
+                    yText = origLen;
+                }
+                return (realH / 2) - yText;
+            } else {
+                temp = yText;
+                yText = yText - stepDiff;
+                return (realH / 2) + temp;
+            }
+        }
+
+        /*
+            Generate Rects to surround text
         */
 
-            var bars = svg.append("g")
-                        .attr("id", "bars")
-                        .selectAll("rect")
-                        .data(dataset)
-                        .enter()
-                        .append("rect");
-
-            bars.attr("x", function (d) { return mainScale(d[0]); })
-                .attr("width", 2)
-                .attr("y", function (d, i) {
-                    if (i % 2 == 0) {
-                        if (yBar == stepDiff) {
-                            yBar = origLen;
-                        }
-                        return (realH / 2) - yBar;
-                    } else {
-                        yBar = yBar - stepDiff;
-                        return (realH / 2);
-                    }
-                })
-                .attr("height", function (d, i) {
-                    if (i % 2 == 0) {
-                        if (barHgt == stepDiff) {
-                            barHgt = origLen;
-                        }
-                        return barHgt;
-                    } else {
-                        temp = barHgt;
-                        barHgt = barHgt - stepDiff;
-                        return temp;
-                    }
-                })
-                .style("fill", "gray")
-                .style("opacity", 0.35);
-
-            /*
-            * Display Text / Date
-            */
-            var desc = svg.append("g")
-                .attr("id", "desc")
-                .attr("class", "desc")
-                .selectAll("text")
-                .data(dataset)
-                .enter()
-                .append("text")
-                .text(function (d, i) { return d[1] + ": " + d[0].toDateString(); })
-                .attr("x", function (d) { return mainScale(d[0]) + 2; })
-                .attr("y", function (d, i) {
-                    if (i % 2 == 0) {
-                        if (yText == stepDiff) {
-                            yText = origLen;
-                        }
-                        return (realH / 2) - yText;
-                    } else {
-                        temp = yText;
-                        yText = yText - stepDiff;
-                        return (realH / 2) + temp;
-                    }
-                }
-                    )
-                .attr("dy", 0)
-                .call(wrap, 150);
-
-            /*
-                Generate Rects to surround text
-            */
-            var textCoords = [];
-            var doc = document.getElementsByTagName("text");
+        //Need to access coordinates of tspan elements surrounding
+        //text boxes
+        var textCoordsBox = [];
+        genTextCoordsBox();
+        function genTextCoordsBox() {
+            textCoordsBox = [];
+            var doc = document.getElementsByTagName("tspan");
             console.log(doc);
             for (i = 1; i < doc.length; i++) {
-                if (doc[i].id == "descText") {
-                    textCoords.push(doc[i]);
+                if (doc[i].id == "textSpan") {
+                    textCoordsBox.push(doc[i]);
                 }
             }
-            console.log(textCoords);
-
-            var descBox = svg.append("g")
-                .attr("id", "descBox")
-                .selectAll("rects")
-                .data(textCoords)
-                .enter()
-                .append("rect")
-                .attr("x", function (d) { return d.getAttribute("x"); })
-                .attr("y", function (d) { return d.getAttribute("y") - 25; })
-                .attr("width", 155)
-                .attr("height", function (d) { return d.getBBox().height + 25; })
-                .style("fill", "gray")
-                .style("fill-opacity", 0.1)
-                .attr("id", "descRect")
-                .attr("rx", 1.5)
-                .attr("ry", 1.5);
-
-            /*
-    Handle Mouse-hover / mouse-out events
-*/
-            d3.selectAll("#descRect")
-                .on("mouseover", hover)
-                .on("mouseout", mouseOut);
         }
-        function clearContent() {
-            d3.select("#main").selectAll("rect").remove();
-            d3.select("#main").selectAll("#descText").remove();
-        }
-        generateContent();
 
+        //Generate rects with same dimensions as tspan elements surrounding
+        //text boxes
+        var descBox = svg.append("g")
+            .attr("id", "descBox")
+            .selectAll("rect")
+            .data(textCoordsBox)
+            .enter()
+            .append("rect")
+            .attr("id", "descRect")
+            .attr("x", function (d) { return d.getAttribute("x"); })
+            .attr("y", function (d) { return d.getAttribute("y") - 25; })
+            .attr("width", 155)
+            .attr("height", function (d) { return d.getBBox().height + 25; })
+            .style("fill", "gray")
+            .style("fill-opacity", 0.05)
+            .attr("rx", 1.5)
+            .attr("ry", 1.5);
+
+        /*
+        * Generate SVG Rectanges Leading from X-Axis to
+        * Center of Task Labels
+        */           
+        var bars = svg.append("g")
+                    .attr("id", "bars")
+                    .selectAll("rect")
+                    .data(dataset)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function (d) { return mainScale(d[0]); })
+                    .attr("width", 2)
+                    .attr("y", function (d, i) { return barsGetY(d, i); })
+                    .attr("height", function (d, i) { return barsGetHeight(d, i); })
+                    .style("fill", "gray")
+                    .style("opacity", 0.25);
+
+        function barsGetY(d, i) {
+            if (i % 2 == 0) {
+                if (yBar == stepDiff) {
+                    yBar = origLen;
+                }
+                return (realH / 2) - yBar + 25;
+            } else {
+                yBar = yBar - stepDiff;
+                return (realH / 2);
+            }
+        }
+
+        function barsGetHeight(d, i) {
+            if (i % 2 == 0) {
+                if (barHgt == stepDiff) {
+                    barHgt = origLen;
+                }
+                return barHgt - 25;
+            } else {
+                temp = barHgt;
+                barHgt = barHgt - stepDiff;
+                return temp - 25;
+            }
+        }
+
+        /*        
+        *   Function to wrap text into blocks, borrowed from the almighty
+        *   Mike Bostock
+        */
         function wrap(text, width) {
             text.each(function () {
                 var text = d3.select(this),
@@ -244,7 +251,7 @@
                     y = text.attr("y"),
                     x = text.attr("x"),
                     dy = parseFloat(text.attr("dy")),
-                    tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em");
+                    tspan = text.text(null).append("tspan").attr("x", x).attr("y", y).attr("dy", dy + "em").attr("id", "textSpan");
                 while (word = words.pop()) {
                     line.push(word);
                     tspan.text(line.join(" "));
@@ -252,13 +259,20 @@
                         line.pop();
                         tspan.text(line.join(" "));
                         line = [word];
-                        tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+                        tspan = text.append("tspan").attr("x", x).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word).attr("id", "textSpan");
                     }
                 }
                 text.attr("id", "descText");
             });
         }
-       
+
+        /*
+            Handle Mouse-hover / mouse-out events
+        */        
+        d3.selectAll("#descRect")
+            .on("mouseover", hover)
+            .on("mouseout", mouseOut);
+
         function hover(hoverD) {
             d3.selectAll("#descRect")
                 .filter(function (d) { return d == hoverD; })
@@ -267,33 +281,43 @@
 
         function mouseOut() {
             d3.selectAll("#descRect")
-                .style("fill-opacity", 0.1);
+                .style("fill-opacity", 0.05);
+        }
+
+        /*
+            Method to clear all content from SVG -- currently not in use
+            anywhere, maybe useful eventually?
+        */
+        function clearContent() {
+            d3.select("#main").selectAll("rect").remove();
+            d3.select("#main").selectAll("#descText").remove();
         }
 
         /*
             Handle Brush and Zoom
         */
-
+        //Brush SVG dimensions
         var brushMargin = { top: 50, right: 160, bottom: 50, left: 160 },
             brushRealW = 1080,
             brushRealH = 150,
             brushW = 1080 - brushMargin.right - brushMargin.left,
             brushH = 150 - brushMargin.top - brushMargin.bottom;
-
+        //Brush SVG
         var brushSvg = d3.select('body')
                  .append("svg")
                  .style("border", border)
                  .attr("width", brushRealW)
                  .attr("height", brushRealH)
                  .attr("id", "brushSVG");
-
+        //Set scale for brush
         var brushScale = d3.scaleTime()
-                .domain([new Date(2017, 12, 18), new Date(2019, 2, 15)])                
+                //.domain([new Date(2017, 12, 18), new Date(2019, 2, 15)])                
+                .domain([minDate, maxDate])
                 .range([brushMargin.left, brushW + brushMargin.right]);
-
+        //Generate brush axis
         var brushAxis = d3.axisBottom(brushScale)
                     .ticks(dataset.length);
-
+        //Generate brush element
         var brush = d3.brushX()
                     .extent([[0, 0], [brushRealW, brushRealH]])
                     .on("brush", brushed);
@@ -317,7 +341,8 @@
                             .style("stroke", borderColor)
                             .style("fill", "none")
                             .style("stroke-width", border);
-
+        //Generate small rects indicating location of events in timeline
+        //in main SVG
         var miniRects = brushSvg.append("g")
                     .attr("id", "miniRects")
                     .selectAll("rect")
@@ -336,17 +361,19 @@
             .attr("class", "brush")
             .call(brush)
             .call(brush.move, mainAxis.range);
-
+        //Brushed event handler
         function brushed() {
             if (d3.event.sourceEvent) {
                 var selection = d3.event.selection;
-                mainScale.domain(selection.map(brushScale.invert, brushScale));
+                mainScale.domain(selection.map(brushScale.invert, brushScale));                
                 svg.select("#mainAxis").call(mainAxis);
-                clearContent();
-                generateContent();
+                setMainAxis();                
+                svg.selectAll("#textSpan")
+                    .attr("x", function (d) { return mainScale(d[0]) - (textWidth / 2); })
+                bars.attr("x", function (d) { return mainScale(d[0]); });
+                descBox.attr("x", function (d) { return d.getAttribute("x"); });                                
             }          
         }
-
    </script>
 </body>
 </html>
